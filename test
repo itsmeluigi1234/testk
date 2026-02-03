@@ -1,0 +1,185 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local localPlayer = Players.LocalPlayer
+
+local RemoteFolder = ReplicatedStorage:FindFirstChild("ScriptHubRemotes")
+if not RemoteFolder then
+    RemoteFolder = Instance.new("Folder")
+    RemoteFolder.Name = "ScriptHubRemotes"
+    RemoteFolder.Parent = ReplicatedStorage
+end
+
+local ToggleEvent = RemoteFolder:FindFirstChild("ToggleEvent")
+if not ToggleEvent then
+    ToggleEvent = Instance.new("RemoteEvent")
+    ToggleEvent.Name = "ToggleEvent"
+    ToggleEvent.Parent = RemoteFolder
+end
+
+local ActionEvent = RemoteFolder:FindFirstChild("ActionEvent")
+if not ActionEvent then
+    ActionEvent = Instance.new("RemoteEvent")
+    ActionEvent.Name = "ActionEvent"
+    ActionEvent.Parent = RemoteFolder
+end
+
+local state = {
+    aimbot = false,
+    wallbang = false,
+    esp = false,
+    antiHeadshot = false,
+    tpBehind = false,
+    autoFarm = false,
+    rageMode = false
+}
+
+local function isSameTeam(otherPlayer)
+    if not otherPlayer then return false end
+    if otherPlayer.Team and localPlayer.Team then
+        return otherPlayer.Team == localPlayer.Team
+    end
+    if otherPlayer.TeamColor and localPlayer.TeamColor then
+        return otherPlayer.TeamColor == localPlayer.TeamColor
+    end
+    return false
+end
+
+local function buildGui()
+    if not localPlayer or not localPlayer:FindFirstChild("PlayerGui") then return end
+    local existing = localPlayer.PlayerGui:FindFirstChild("ScriptHubGUI")
+    if existing then existing:Destroy() end
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ScriptHubGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = localPlayer.PlayerGui
+
+    local frame = Instance.new("Frame", screenGui)
+    frame.Name = "MainFrame"
+    frame.Size = UDim2.new(0, 380, 0, 300)
+    frame.Position = UDim2.new(0, 20, 0, 80)
+    frame.BackgroundTransparency = 0.15
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    frame.BorderSizePixel = 0
+    frame.AnchorPoint = Vector2.new(0,0)
+
+    local tabHolder = Instance.new("Frame", frame)
+    tabHolder.Size = UDim2.new(1, -20, 0, 36)
+    tabHolder.Position = UDim2.new(0, 10, 0, 8)
+    tabHolder.BackgroundTransparency = 1
+
+    local function makeTab(name, x)
+        local btn = Instance.new("TextButton", tabHolder)
+        btn.Name = name.."Tab"
+        btn.Text = name
+        btn.Size = UDim2.new(0, 110, 1, 0)
+        btn.Position = UDim2.new(0, x, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+        btn.TextColor3 = Color3.fromRGB(230,230,230)
+        btn.BorderSizePixel = 0
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 18
+        return btn
+    end
+
+    local mainBtn = makeTab("Main", 0)
+    local rageBtn = makeTab("RageBot", 120)
+    local aboutBtn = makeTab("About", 240)
+
+    local content = Instance.new("Frame", frame)
+    content.Name = "Content"
+    content.Size = UDim2.new(1, -20, 1, -60)
+    content.Position = UDim2.new(0, 10, 0, 48)
+    content.BackgroundTransparency = 1
+
+    local function clearContent()
+        for _,c in pairs(content:GetChildren()) do
+            c:Destroy()
+        end
+    end
+
+    local function createToggle(labelText, key, y)
+        local label = Instance.new("TextLabel", content)
+        label.Text = labelText
+        label.Size = UDim2.new(0, 200, 0, 28)
+        label.Position = UDim2.new(0, 6, 0, y)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(230,230,230)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 16
+
+        local toggle = Instance.new("TextButton", content)
+        toggle.Name = key.."Toggle"
+        toggle.Text = state[key] and "ON" or "OFF"
+        toggle.Size = UDim2.new(0, 80, 0, 28)
+        toggle.Position = UDim2.new(0, 220, 0, y)
+        toggle.BackgroundColor3 = Color3.fromRGB(55,55,55)
+        toggle.TextColor3 = Color3.fromRGB(230,230,230)
+        toggle.BorderSizePixel = 0
+        toggle.Font = Enum.Font.SourceSans
+        toggle.TextSize = 16
+
+        toggle.MouseButton1Click:Connect(function()
+            state[key] = not state[key]
+            toggle.Text = state[key] and "ON" or "OFF"
+            ToggleEvent:FireServer(key, state[key])
+        end)
+    end
+
+    local function showMain()
+        clearContent()
+        createToggle("Aimbot", "aimbot", 6)
+        createToggle("Wallbang", "wallbang", 40)
+        createToggle("ESP", "esp", 74)
+        createToggle("AntiHeadshot", "antiHeadshot", 108)
+    end
+
+    local function showRage()
+        clearContent()
+        createToggle("TP Behind", "tpBehind", 6)
+        createToggle("Auto Farm", "autoFarm", 40)
+        createToggle("Rage Mode", "rageMode", 74)
+    end
+
+    local function showAbout()
+        clearContent()
+        local t = Instance.new("TextLabel", content)
+        t.Size = UDim2.new(1, -12, 1, -12)
+        t.Position = UDim2.new(0,6,0,6)
+        t.Text = "Script Hub"
+        t.BackgroundTransparency = 1
+        t.TextColor3 = Color3.fromRGB(220,220,220)
+        t.TextWrapped = true
+        t.Font = Enum.Font.SourceSans
+        t.TextSize = 14
+    end
+
+    mainBtn.MouseButton1Click:Connect(showMain)
+    rageBtn.MouseButton1Click:Connect(showRage)
+    aboutBtn.MouseButton1Click:Connect(showAbout)
+
+    showMain()
+end
+
+if localPlayer and localPlayer:FindFirstChild("PlayerGui") then
+    buildGui()
+else
+    localPlayer.CharacterAdded:Connect(function() buildGui() end)
+    localPlayer:GetPropertyChangedSignal("PlayerGui"):Connect(function()
+        if localPlayer.PlayerGui then buildGui() end
+    end)
+end
+
+ToggleEvent.OnClientEvent:Connect(function(key, value)
+    state[key] = value
+end)
+
+local ScriptHub = {}
+ScriptHub.State = state
+ScriptHub.IsSameTeam = isSameTeam
+ScriptHub.ToggleEvent = ToggleEvent
+ScriptHub.ActionEvent = ActionEvent
+
+return ScriptHub
